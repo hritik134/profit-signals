@@ -143,7 +143,7 @@ def add_trade(signal):
     global active_trades
 
     for t in active_trades:
-        if t["symbol"] == signal["symbol"] and t["action"] == signal["action"]:
+        if t["symbol"] == signal["symbol"]:
             return
 
     trade = {

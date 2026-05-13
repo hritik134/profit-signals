@@ -460,11 +460,16 @@ def generate_signal(df, name, symbol=None):
         signal = {
             "name": name,
             "action": "BUY",
+            "type": "SWING",
             "strength": "STRONG" if buy_score >= 6 else "MODERATE",
             "price": round(price, 2),
             "stop_loss": sl,
             "target_1": t1,
             "target_2": t2,
+            "targets": [
+                {"points": round(t1 - price, 2), "price": t1},
+                {"points": round(t2 - price, 2), "price": t2},
+            ],
             "risk_per_unit": round(risk, 2),
             "reward_t1": round(t1 - price, 2),
             "reward_t2": round(t2 - price, 2),
@@ -504,11 +509,16 @@ def generate_signal(df, name, symbol=None):
         signal = {
             "name": name,
             "action": "SELL",
+            "type": "SWING",
             "strength": "STRONG" if sell_score >= 6 else "MODERATE",
             "price": round(price, 2),
             "stop_loss": sl,
             "target_1": t1,
             "target_2": t2,
+            "targets": [
+                {"points": round(price - t1, 2), "price": t1},
+                {"points": round(price - t2, 2), "price": t2},
+            ],
             "risk_per_unit": round(risk, 2),
             "reward_t1": round(price - t1, 2),
             "reward_t2": round(price - t2, 2),
