@@ -264,9 +264,10 @@ def get_data():
         )
 
 
+scanner_thread = threading.Thread(target=background_scanner, daemon=True)
+scanner_thread.start()
+
 if __name__ == "__main__":
-    scanner_thread = threading.Thread(target=background_scanner, daemon=True)
-    scanner_thread.start()
     print("\n  Trade Signal Web App running!")
     print("  Open on your phone: http://<your-pc-ip>:5000")
     print("  Open on this PC:    http://localhost:5000\n")
