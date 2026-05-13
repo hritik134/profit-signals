@@ -26,7 +26,7 @@ TA_CONFIG = {
 }
 
 # Scan interval in seconds
-SCAN_INTERVAL = 120
+SCAN_INTERVAL = 300
 
 # Signal strength thresholds
 STRONG_SIGNAL_MIN_SCORE = 4  # out of 6 indicators agreeing

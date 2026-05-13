@@ -7,6 +7,7 @@ from flask import Flask, render_template, Response
 
 from analyzer import fetch_data, generate_signal
 from scalper import generate_scalp_signal, fetch_scalp_data
+from config import SCAN_INTERVAL
 
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -175,6 +176,8 @@ def background_scanner():
     print("[SCANNER] Background scanner started", flush=True)
     time.sleep(2)  # let gunicorn finish worker init before first scan
 
+    rate_limit_backoff = 0  # extra seconds to wait after rate limiting
+
     while True:
         try:
             signals = []
@@ -252,15 +255,23 @@ def background_scanner():
                 latest_data["nse_next_open"] = nse_next_open() if not nse_live else ""
 
             print(f"[SCANNER] Scan #{latest_data['scan_count']} done. Prices: {list(live_prices.keys())}", flush=True)
+            rate_limit_backoff = 0  # reset backoff on successful scan
 
         except BaseException as e:
             if isinstance(e, (SystemExit, KeyboardInterrupt)):
                 print(f"[SCANNER] Stopping: {type(e).__name__}", flush=True)
                 return
-            print(f"[SCANNER] CRASH: {e}", flush=True)
-            traceback.print_exc()
+            err_str = str(e).lower()
+            if "too many requests" in err_str or "rate limit" in err_str:
+                rate_limit_backoff = min(rate_limit_backoff + 120, 600)
+                print(f"[SCANNER] Rate limited — backing off +{rate_limit_backoff}s", flush=True)
+            else:
+                print(f"[SCANNER] CRASH: {e}", flush=True)
+                traceback.print_exc()
 
-        time.sleep(30)
+        sleep_time = SCAN_INTERVAL + rate_limit_backoff
+        print(f"[SCANNER] Sleeping {sleep_time}s until next scan", flush=True)
+        time.sleep(sleep_time)
 
 
 scanner_thread = None
