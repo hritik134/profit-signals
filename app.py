@@ -273,6 +273,22 @@ def get_data():
         )
 
 
+@app.route("/debug")
+def debug():
+    with data_lock:
+        info = {
+            "scan_count": latest_data.get("scan_count", 0),
+            "last_scan": latest_data.get("last_scan"),
+            "nse_open": latest_data.get("nse_open"),
+            "live_prices_keys": list(latest_data.get("live_prices", {}).keys()),
+            "signals_count": len(latest_data.get("signals", [])),
+            "scalp_signals_count": len(latest_data.get("scalp_signals", [])),
+            "summaries_count": len(latest_data.get("summaries", [])),
+            "scanner_thread_alive": scanner_thread.is_alive() if scanner_thread else False,
+        }
+    return Response(json.dumps(info, indent=2), mimetype="application/json")
+
+
 scanner_thread = threading.Thread(target=background_scanner, daemon=True)
 scanner_thread.start()
 

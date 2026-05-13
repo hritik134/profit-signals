@@ -2,12 +2,22 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import ta
+import requests
 from config import TA_CONFIG
+
+_SESSION = requests.Session()
+_SESSION.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+})
 
 
 def fetch_data(symbol, period="5d", interval="15m"):
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=_SESSION)
         df = ticker.history(period=period, interval=interval)
         if df.empty:
             return None
@@ -19,7 +29,7 @@ def fetch_data(symbol, period="5d", interval="15m"):
 
 def fetch_higher_timeframe(symbol, period="1mo", interval="1h"):
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=_SESSION)
         df = ticker.history(period=period, interval=interval)
         if df.empty:
             return None

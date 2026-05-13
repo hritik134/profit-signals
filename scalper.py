@@ -2,11 +2,21 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import ta
+import requests
+
+_SESSION = requests.Session()
+_SESSION.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+})
 
 
 def fetch_scalp_data(symbol, period="1d", interval="5m"):
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=_SESSION)
         df = ticker.history(period=period, interval=interval)
         if df.empty:
             return None
