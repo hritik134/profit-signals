@@ -1,4 +1,3 @@
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import ta
@@ -8,10 +7,37 @@ from config import TA_CONFIG
 _SESSION = curl_requests.Session(impersonate="chrome110")
 
 
-def fetch_data(symbol, period="5d", interval="15m"):
+def _fetch_yahoo(symbol, period="5d", interval="15m"):
+    """Fetch OHLCV data directly from Yahoo Finance v8 API."""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+    params = {
+        "interval": interval,
+        "range": period,
+        "includePrePost": "false",
+        "events": "div,splits",
+    }
     try:
-        ticker = yf.Ticker(symbol, session=_SESSION)
-        df = ticker.history(period=period, interval=interval)
+        resp = _SESSION.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        chart = data.get("chart", {})
+        if chart.get("error"):
+            print(f"  [!] Yahoo error for {symbol}: {chart['error']}")
+            return None
+        result = chart.get("result")
+        if not result:
+            return None
+        result = result[0]
+        timestamps = result.get("timestamp", [])
+        quote = result.get("indicators", {}).get("quote", [{}])[0]
+        df = pd.DataFrame({
+            "Open": quote.get("open", []),
+            "High": quote.get("high", []),
+            "Low": quote.get("low", []),
+            "Close": quote.get("close", []),
+            "Volume": quote.get("volume", []),
+        }, index=pd.to_datetime(timestamps, unit="s", utc=True))
+        df.dropna(subset=["Open", "High", "Low", "Close"], inplace=True)
         if df.empty:
             return None
         return df
@@ -20,15 +46,12 @@ def fetch_data(symbol, period="5d", interval="15m"):
         return None
 
 
+def fetch_data(symbol, period="5d", interval="15m"):
+    return _fetch_yahoo(symbol, period=period, interval=interval)
+
+
 def fetch_higher_timeframe(symbol, period="1mo", interval="1h"):
-    try:
-        ticker = yf.Ticker(symbol, session=_SESSION)
-        df = ticker.history(period=period, interval=interval)
-        if df.empty:
-            return None
-        return df
-    except Exception:
-        return None
+    return _fetch_yahoo(symbol, period=period, interval=interval)
 
 
 def compute_indicators(df):
