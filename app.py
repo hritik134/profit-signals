@@ -170,82 +170,91 @@ def add_trade(signal):
 
 def background_scanner():
     global active_trades
+    import traceback
+
+    print("[SCANNER] Background scanner started", flush=True)
 
     while True:
-        signals = []
-        summaries = []
-        scalp_signals = []
-        scalp_summaries = []
-        live_prices = {}
-        closed_trades = []
+        try:
+            signals = []
+            summaries = []
+            scalp_signals = []
+            scalp_summaries = []
+            live_prices = {}
+            closed_trades = []
 
-        nse_live = is_nse_open()
+            nse_live = is_nse_open()
 
-        # Fetch live prices for all instruments
-        price_symbols = [("GC=F", "Gold", "$")]
-        if nse_live:
-            price_symbols += [("^NSEI", "NIFTY", ""), ("^NSEBANK", "BANKNIFTY", "")]
+            price_symbols = [("GC=F", "Gold", "$")]
+            if nse_live:
+                price_symbols += [("^NSEI", "NIFTY", ""), ("^NSEBANK", "BANKNIFTY", "")]
 
-        for sym, name, label in price_symbols:
-            lp = get_live_price(sym)
-            if lp:
-                lp["name"] = name
-                lp["label"] = label
-                live_prices[sym] = lp
+            for sym, name, label in price_symbols:
+                try:
+                    lp = get_live_price(sym)
+                    if lp:
+                        lp["name"] = name
+                        lp["label"] = label
+                        live_prices[sym] = lp
+                except Exception as e:
+                    print(f"[SCANNER] Price fetch error {sym}: {e}", flush=True)
 
-        # Check active trades against live prices
-        still_open, closed_trades = check_active_trades(live_prices)
+            still_open, closed_trades = check_active_trades(live_prices)
 
-        # Swing signals
-        all_instruments = INSTRUMENTS["india"] + INSTRUMENTS["gold"]
-        for item in all_instruments:
-            is_indian = item["symbol"] in ("^NSEI", "^NSEBANK")
-            if is_indian and not nse_live:
-                continue
-            try:
-                df = fetch_data(item["symbol"])
-                if df is None:
+            all_instruments = INSTRUMENTS["india"] + INSTRUMENTS["gold"]
+            for item in all_instruments:
+                is_indian = item["symbol"] in ("^NSEI", "^NSEBANK")
+                if is_indian and not nse_live:
                     continue
-                result = generate_signal(df, item["name"], symbol=item["symbol"])
-                if result is None:
-                    continue
-                if result["signal"]:
-                    result["signal"]["symbol"] = item["symbol"]
-                    signals.append(result["signal"])
-                    add_trade(result["signal"])
-                summaries.append(result["summary"])
-            except Exception as e:
-                print(f"Error scanning {item['name']}: {e}")
+                try:
+                    df = fetch_data(item["symbol"])
+                    if df is None:
+                        continue
+                    result = generate_signal(df, item["name"], symbol=item["symbol"])
+                    if result is None:
+                        continue
+                    if result["signal"]:
+                        result["signal"]["symbol"] = item["symbol"]
+                        signals.append(result["signal"])
+                        add_trade(result["signal"])
+                    summaries.append(result["summary"])
+                except Exception as e:
+                    print(f"[SCANNER] Swing error {item['name']}: {e}", flush=True)
 
-        # Scalp signals
-        scalp_symbols = ["GC=F"]
-        if nse_live:
-            scalp_symbols += ["^NSEI", "^NSEBANK"]
+            scalp_symbols = ["GC=F"]
+            if nse_live:
+                scalp_symbols += ["^NSEI", "^NSEBANK"]
 
-        for sym in scalp_symbols:
-            try:
-                result = generate_scalp_signal(sym)
-                if result is None:
-                    continue
-                if result["signal"]:
-                    scalp_signals.append(result["signal"])
-                    add_trade(result["signal"])
-                scalp_summaries.append(result["summary"])
-            except Exception as e:
-                print(f"Error scalp scanning {sym}: {e}")
+            for sym in scalp_symbols:
+                try:
+                    result = generate_scalp_signal(sym)
+                    if result is None:
+                        continue
+                    if result["signal"]:
+                        scalp_signals.append(result["signal"])
+                        add_trade(result["signal"])
+                    scalp_summaries.append(result["summary"])
+                except Exception as e:
+                    print(f"[SCANNER] Scalp error {sym}: {e}", flush=True)
 
-        with data_lock:
-            latest_data["signals"] = signals
-            latest_data["summaries"] = summaries
-            latest_data["scalp_signals"] = scalp_signals
-            latest_data["scalp_summaries"] = scalp_summaries
-            latest_data["active_trades"] = [t for t in active_trades]
-            latest_data["closed_trades"] = closed_trades
-            latest_data["live_prices"] = live_prices
-            latest_data["last_scan"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            latest_data["scan_count"] += 1
-            latest_data["nse_open"] = nse_live
-            latest_data["nse_next_open"] = nse_next_open() if not nse_live else ""
+            with data_lock:
+                latest_data["signals"] = signals
+                latest_data["summaries"] = summaries
+                latest_data["scalp_signals"] = scalp_signals
+                latest_data["scalp_summaries"] = scalp_summaries
+                latest_data["active_trades"] = [t for t in active_trades]
+                latest_data["closed_trades"] = closed_trades
+                latest_data["live_prices"] = live_prices
+                latest_data["last_scan"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                latest_data["scan_count"] += 1
+                latest_data["nse_open"] = nse_live
+                latest_data["nse_next_open"] = nse_next_open() if not nse_live else ""
+
+            print(f"[SCANNER] Scan #{latest_data['scan_count']} done. Prices: {list(live_prices.keys())}", flush=True)
+
+        except Exception as e:
+            print(f"[SCANNER] CRASH: {e}", flush=True)
+            traceback.print_exc()
 
         time.sleep(30)
 
