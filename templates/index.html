@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Kite Trade Signals</title>
+<link rel="manifest" href="/static/manifest.json">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a2e;--bg4:#22223a;
+  --gold:#ffd700;--green:#00ff88;--red:#ff4444;--orange:#ff6600;--blue:#00ccff;
+  --text:#e8e8e8;--text2:#999;--text3:#666;
+  --radius:12px;--radius-sm:8px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;min-height:100dvh;
+  overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);
+}
+a{color:var(--blue);text-decoration:none}
+
+/* HEADER */
+.header{
+  background:linear-gradient(180deg,#0f0f18 0%,var(--bg) 100%);
+  padding:16px 16px 10px;text-align:center;
+  border-bottom:1px solid var(--bg3);
+  position:sticky;top:0;z-index:100;
+}
+.header h1{
+  font-size:1.1rem;letter-spacing:3px;
+  color:var(--gold);font-weight:700;
+  text-shadow:0 0 20px rgba(255,215,0,0.3);
+}
+.header-note{font-size:0.65rem;color:var(--text3);margin-top:4px;line-height:1.3}
+.scan-info{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-top:6px;font-size:0.72rem;color:var(--text2);
+}
+.live-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--green);
+  animation:pulse 2s infinite;display:inline-block;flex-shrink:0;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TICKER */
+.ticker{
+  display:flex;gap:6px;padding:8px 12px;
+  background:var(--bg2);overflow-x:auto;
+  scrollbar-width:none;
+}
+.ticker::-webkit-scrollbar{display:none}
+.tick-item{
+  flex:1;min-width:110px;text-align:center;
+  background:var(--bg3);border-radius:var(--radius-sm);
+  padding:8px 6px;
+}
+.tick-name{font-size:0.65rem;color:var(--text2);font-weight:600;letter-spacing:1px}
+.tick-price{font-size:1.05rem;font-weight:700;margin:2px 0}
+.tick-change{font-size:0.7rem;font-weight:600}
+.tick-closed{font-size:0.75rem;color:var(--text3);font-style:italic;margin-top:2px}
+.up{color:var(--green)}.down{color:var(--red)}
+
+/* COUNTDOWN */
+.countdown-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px;background:var(--bg);
+}
+.cd-track{flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.cd-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s linear}
+.cd-text{font-size:0.7rem;color:var(--text2);min-width:32px;text-align:right}
+.cd-text.refreshing{color:var(--gold);animation:pulse 1s infinite}
+.btn-refresh{
+  background:none;border:1px solid var(--bg4);
+  color:var(--text2);border-radius:6px;
+  padding:4px 10px;font-size:0.7rem;cursor:pointer;
+  min-height:28px;min-width:44px;
+  transition:all .2s;-webkit-tap-highlight-color:transparent;
+}
+.btn-refresh:active{background:var(--bg3);transform:scale(.95)}
+
+/* MARKET BANNER */
+.market-banner{
+  padding:8px 16px;text-align:center;font-size:0.72rem;
+  font-weight:600;letter-spacing:.5px;
+}
+.market-banner.open{background:rgba(0,255,136,.08);color:var(--green);border-bottom:1px solid rgba(0,255,136,.15)}
+.market-banner.closed{background:rgba(255,68,68,.06);color:var(--red);border-bottom:1px solid rgba(255,68,68,.1)}
+
+/* TABS */
+.tabs{
+  display:flex;gap:0;background:var(--bg2);
+  position:sticky;top:0;z-index:90;
+  border-bottom:2px solid var(--bg3);
+  overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:0;padding:12px 4px 10px;
+  text-align:center;font-size:0.72rem;font-weight:600;
+  color:var(--text3);cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all .2s;position:relative;
+  letter-spacing:.3px;white-space:nowrap;
+  min-height:44px;display:flex;align-items:center;justify-content:center;gap:4px;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.tab[data-tab="trades"].active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab[data-tab="scalp"].active{color:var(--orange);border-bottom-color:var(--orange)}
+.tab-badge{
+  background:var(--blue);color:#000;font-size:0.6rem;
+  font-weight:700;border-radius:10px;
+  padding:1px 6px;min-width:18px;text-align:center;
+}
+
+/* PANELS */
+.panel{display:none;padding:12px;padding-bottom:calc(20px + var(--safe-bottom));animation:fadeUp .25s ease}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* CARDS */
+.card{
+  background:var(--bg2);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px;
+  border:1px solid var(--bg3);
+}
+.card-glow-green{border-color:rgba(0,255,136,.2);box-shadow:0 0 15px rgba(0,255,136,.05)}
+.card-glow-red{border-color:rgba(255,68,68,.2);box-shadow:0 0 15px rgba(255,68,68,.05)}
+.card-glow-blue{border-color:rgba(0,204,255,.2);box-shadow:0 0 15px rgba(0,204,255,.05)}
+
+/* Section headings */
+.section-title{
+  font-size:0.8rem;font-weight:700;color:var(--text2);
+  letter-spacing:1.5px;margin:16px 0 10px;
+  display:flex;align-items:center;gap:8px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:var(--bg3)}
+
+/* Signal header row */
+.sig-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.badge{
+  font-size:0.65rem;font-weight:700;padding:3px 8px;
+  border-radius:4px;letter-spacing:.5px;
+}
+.badge-buy{background:rgba(0,255,136,.15);color:var(--green)}
+.badge-sell{background:rgba(255,68,68,.15);color:var(--red)}
+.badge-strong{background:rgba(255,215,0,.15);color:var(--gold)}
+.badge-scalp{background:rgba(255,102,0,.15);color:var(--orange)}
+.badge-swing{background:rgba(0,204,255,.15);color:var(--blue)}
+.badge-active{background:rgba(0,204,255,.15);color:var(--blue)}
+.badge-won{background:rgba(0,255,136,.15);color:var(--green)}
+.badge-lost{background:rgba(255,68,68,.15);color:var(--red)}
+.sig-name{font-size:0.9rem;font-weight:700;color:var(--text)}
+.sig-score{font-size:0.7rem;color:var(--text2)}
+
+/* Price grid */
+.price-grid{display:grid;gap:6px;margin:10px 0}
+.price-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.price-grid.cols-4{grid-template-columns:repeat(2,1fr)}
+.price-box{
+  background:var(--bg3);border-radius:var(--radius-sm);
+  padding:8px 6px;text-align:center;
+}
+.price-box.buy-box{border-top:2px solid var(--green)}
+.price-box.sell-box{border-top:2px solid var(--red)}
+.price-box.sl-box{border-top:2px solid var(--red)}
+.price-box.target-box{border-top:2px solid var(--green)}
+.price-box.current-box{border-top:2px solid var(--blue)}
+.price-box.entry-box{border-top:2px solid var(--gold)}
+.pb-label{font-size:0.6rem;color:var(--text3);letter-spacing:.5px;font-weight:600}
+.pb-price{font-size:1rem;font-weight:700;margin-top:2px}
+.pb-price.big{font-size:1.15rem}
+
+/* PnL */
+.pnl-bar{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px;border-radius:var(--radius-sm);margin:8px 0;
+}
+.pnl-bar.positive{background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2)}
+.pnl-bar.negative{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2)}
+.pnl-val{font-size:1.4rem;font-weight:800}
+.pnl-pct{font-size:0.85rem;font-weight:600}
+
+/* Steps */
+.steps{margin:10px 0}
+.step{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:6px 0;font-size:0.78rem;color:var(--text2);
+  line-height:1.4;
+}
+.step-num{
+  min-width:22px;height:22px;border-radius:50%;
+  background:var(--bg4);color:var(--text);
+  font-size:0.65rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+
+/* Reasons */
+.reasons{margin:8px 0}
+.reason{
+  font-size:0.72rem;color:var(--text2);
+  padding:3px 0;display:flex;align-items:flex-start;gap:6px;
+  line-height:1.3;
+}
+.reason::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--gold);margin-top:5px;flex-shrink:0}
+
+/* RR row */
+.rr-row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+.rr-item{
+  flex:1;min-width:0;background:var(--bg3);
+  border-radius:6px;padding:6px 8px;text-align:center;
+}
+.rr-label{font-size:0.6rem;color:var(--text3);letter-spacing:.5px}
+.rr-val{font-size:0.85rem;font-weight:700;margin-top:1px}
+
+/* Score bar */
+.score-bar-wrap{margin:6px 0}
+.score-bar-label{font-size:0.65rem;color:var(--text3);margin-bottom:3px;display:flex;justify-content:space-between}
+.score-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .4s ease}
+
+/* Indicator pills */
+.indicators{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}
+.ind{
+  font-size:0.62rem;padding:3px 7px;border-radius:4px;
+  background:var(--bg3);color:var(--text2);font-weight:500;
+}
+.ind.bullish{color:var(--green);background:rgba(0,255,136,.08)}
+.ind.bearish{color:var(--red);background:rgba(255,68,68,.08)}
+.ind.neutral{color:var(--gold);background:rgba(255,215,0,.08)}
+
+/* Instruction callout */
+.callout{
+  background:var(--bg3);border-radius:var(--radius-sm);
+  padding:10px 12px;margin:8px 0;
+  border-left:3px solid var(--gold);
+}
+.callout p{font-size:0.75rem;color:var(--text2);line-height:1.4}
+.callout.info{border-left-color:var(--blue)}
+.callout.warn{border-left-color:var(--orange)}
+
+/* Market closed overlay */
+.market-closed-card{
+  text-align:center;padding:40px 20px;
+  background:var(--bg2);border-radius:var(--radius);
+  border:1px solid var(--bg3);
+}
+.market-closed-card .lock{font-size:2.5rem;margin-bottom:12px;display:block}
+.market-closed-card h3{color:var(--red);font-size:1rem;margin-bottom:8px}
+.market-closed-card p{color:var(--text2);font-size:0.8rem;line-height:1.5}
+.market-closed-card .next-time{color:var(--gold);font-weight:700;font-size:0.9rem;margin-top:10px}
+
+/* Summary card */
+.summary-card{
+  background:var(--bg2);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px;border:1px solid var(--bg3);
+}
+.summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.summary-name{font-size:0.85rem;font-weight:700}
+.summary-price{font-size:0.9rem;font-weight:700;color:var(--gold)}
+
+/* Indicator grid */
+.ind-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.ind-cell{background:var(--bg3);border-radius:6px;padding:6px;text-align:center}
+.ind-cell-label{font-size:0.58rem;color:var(--text3);letter-spacing:.5px}
+.ind-cell-val{font-size:0.78rem;font-weight:700;margin-top:2px}
+
+/* Support/Resistance */
+.sr-levels{display:flex;gap:6px;margin:8px 0}
+.sr-box{flex:1;padding:8px;border-radius:var(--radius-sm);text-align:center}
+.sr-box.support{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15)}
+.sr-box.resistance{background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.15)}
+.sr-label{font-size:0.58rem;color:var(--text3);letter-spacing:.5px}
+.sr-value{font-size:0.9rem;font-weight:700;margin-top:2px}
+
+/* No data */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .icon{font-size:2rem;margin-bottom:10px;display:block}
+.empty-state p{font-size:0.82rem;line-height:1.5}
+
+/* Divider */
+.divider{height:1px;background:var(--bg3);margin:14px 0}
+
+/* Helpers */
+.text-green{color:var(--green)}.text-red{color:var(--red)}.text-gold{color:var(--gold)}
+.text-blue{color:var(--blue)}.text-orange{color:var(--orange)}
+.text-muted{color:var(--text2)}.text-xs{font-size:0.7rem}.text-sm{font-size:0.78rem}
+.fw700{font-weight:700}.mt4{margin-top:4px}.mt8{margin-top:8px}.mb8{margin-bottom:8px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:0;height:0}
+
+/* Swing signal card */
+.swing-card{
+  background:var(--bg2);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px;border:1px solid var(--bg3);
+}
+.swing-card.buy-glow{border-color:rgba(0,255,136,.2);box-shadow:0 0 20px rgba(0,255,136,.05)}
+.swing-card.sell-glow{border-color:rgba(255,68,68,.2);box-shadow:0 0 20px rgba(255,68,68,.05)}
+
+/* Scalp big action card */
+.scalp-card{
+  border-radius:var(--radius);padding:16px;margin-bottom:12px;
+  position:relative;overflow:hidden;
+}
+.scalp-card.buy{
+  background:linear-gradient(135deg,#071a0a,#0a1f0a);
+  border:2px solid var(--green);box-shadow:0 0 30px rgba(0,255,136,.1);
+}
+.scalp-card.sell{
+  background:linear-gradient(135deg,#1a0707,#1f0a0a);
+  border:2px solid var(--red);box-shadow:0 0 30px rgba(255,68,68,.1);
+}
+.scalp-title{font-size:0.65rem;font-weight:700;letter-spacing:2px;color:var(--text3)}
+.scalp-action-name{font-size:1.2rem;font-weight:800;margin:4px 0 12px}
+.scalp-action-name.buy{color:var(--green)}
+.scalp-action-name.sell{color:var(--red)}
+
+.ee-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;
+  border-top:1px solid rgba(255,255,255,.08);
+  margin:0 -16px;
+}
+.ee-cell{padding:14px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.08)}
+.ee-cell:last-child{border-right:none}
+.ee-label{font-size:0.6rem;font-weight:700;letter-spacing:1.5px;margin-bottom:4px}
+.ee-price{font-size:1.25rem;font-weight:800}
+.ee-sub{font-size:0.62rem;color:var(--text3);margin-top:2px}
+.ee-cell.entry .ee-label,.ee-cell.entry .ee-price{color:var(--gold)}
+.ee-cell.sl .ee-label,.ee-cell.sl .ee-price{color:var(--red)}
+.ee-cell.target .ee-label,.ee-cell.target .ee-price{color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <h1>KITE TRADE SIGNALS</h1>
+  <p class="header-note">Gold = COMEX Futures (GC=F) &mdash; XAU/USD spot is ~$8-10 lower</p>
+  <div class="scan-info">
+    <span class="live-dot"></span>
+    <span id="lastScan">Scanning...</span>
+    <span>&middot;</span>
+    <span id="scanCount">0 scans</span>
+  </div>
+</header>
+
+<!-- LIVE TICKER -->
+<div class="ticker" id="ticker">
+  <div class="tick-item" id="tick-gold">
+    <div class="tick-name">GOLD</div>
+    <div class="tick-price" id="tick-gold-price">--</div>
+    <div class="tick-change" id="tick-gold-change"></div>
+  </div>
+  <div class="tick-item" id="tick-nifty">
+    <div class="tick-name">NIFTY</div>
+    <div class="tick-price" id="tick-nifty-price">--</div>
+    <div class="tick-change" id="tick-nifty-change"></div>
+  </div>
+  <div class="tick-item" id="tick-bnifty">
+    <div class="tick-name">BNIFTY</div>
+    <div class="tick-price" id="tick-bnifty-price">--</div>
+    <div class="tick-change" id="tick-bnifty-change"></div>
+  </div>
+</div>
+
+<!-- COUNTDOWN -->
+<div class="countdown-bar">
+  <div class="cd-track"><div class="cd-fill" id="cdFill" style="width:100%"></div></div>
+  <span class="cd-text" id="cdText">30s</span>
+  <button class="btn-refresh" id="btnRefresh" onclick="manualRefresh()">Refresh</button>
+</div>
+
+<!-- MARKET BANNER -->
+<div class="market-banner closed" id="marketBanner">NSE CLOSED</div>
+
+<!-- TABS -->
+<nav class="tabs" id="tabsNav">
+  <div class="tab active" data-tab="trades" onclick="switchTab('trades')">
+    Trades <span class="tab-badge" id="tradesBadge" style="display:none">0</span>
+  </div>
+  <div class="tab" data-tab="swing" onclick="switchTab('swing')">Swing</div>
+  <div class="tab" data-tab="scalp" onclick="switchTab('scalp')">Scalp</div>
+  <div class="tab" data-tab="gold" onclick="switchTab('gold')">Gold</div>
+  <div class="tab" data-tab="india" onclick="switchTab('india')">India</div>
+</nav>
+
+<!-- PANELS -->
+<main>
+
+<!-- TRADES TAB -->
+<div class="panel active" id="panel-trades">
+  <div id="activeTradesSection"></div>
+  <div id="closedTradesSection"></div>
+  <div id="tradesEmpty" class="empty-state">
+    <span class="icon">&#128202;</span>
+    <p>No active or closed trades right now.<br>Signals will appear when conditions are met.</p>
+    <p class="mt8 text-gold text-xs">Check the Scalp or Swing tab for new signals</p>
+  </div>
+</div>
+
+<!-- SWING TAB -->
+<div class="panel" id="panel-swing">
+  <div id="swingSignals"></div>
+  <div id="swingDivider" class="divider" style="display:none"></div>
+  <div id="swingSumTitle" class="section-title" style="display:none">ANALYSIS</div>
+  <div id="swingSummaries"></div>
+  <div id="swingEmpty" class="empty-state">
+    <span class="icon">&#128200;</span>
+    <p>No swing signals at the moment.<br>Waiting for setup conditions.</p>
+  </div>
+</div>
+
+<!-- SCALP TAB -->
+<div class="panel" id="panel-scalp">
+  <div id="scalpSignals"></div>
+  <div id="scalpDivider" class="divider" style="display:none"></div>
+  <div id="scalpMomTitle" class="section-title" style="display:none">MOMENTUM DATA</div>
+  <div id="scalpSummaries"></div>
+  <div id="scalpEmpty" class="empty-state">
+    <span class="icon">&#9889;</span>
+    <p>No scalp signals right now.<br>Monitoring momentum for entries.</p>
+  </div>
+</div>
+
+<!-- GOLD TAB -->
+<div class="panel" id="panel-gold">
+  <div id="goldContent"></div>
+  <div id="goldEmpty" class="empty-state">
+    <span class="icon">&#129689;</span>
+    <p>Gold analysis will appear here.</p>
+  </div>
+</div>
+
+<!-- INDIA TAB -->
+<div class="panel" id="panel-india">
+  <div id="indiaContent"></div>
+</div>
+
+</main>
+
+<script>
+/* ========== STATE ========== */
+let DATA = {};
+let countdown = 30;
+let cdInterval = null;
+let currentTab = 'trades';
+
+/* ========== HELPERS ========== */
+const $ = id => document.getElementById(id);
+const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt = (n, d) => n != null ? Number(n).toFixed(d !== undefined ? d : 2) : '--';
+const fmtInt = n => n != null ? Number(n).toLocaleString() : '--';
+const pctClass = v => v >= 0 ? 'up' : 'down';
+const signStr = v => v >= 0 ? '+' : '';
+
+function priceLabel(val, label) {
+  if (val == null) return '--';
+  if (label === '$') return '$' + fmt(val);
+  if (label === '₹') return '₹' + fmtInt(val);
+  return fmt(val);
+}
+
+/* ========== TICKER ========== */
+function renderTicker(lp) {
+  var items = [
+    { id: 'gold', key: 'GC=F' },
+    { id: 'nifty', key: '^NSEI' },
+    { id: 'bnifty', key: '^NSEBANK' }
+  ];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var d = lp && lp[it.key];
+    var priceEl = $('tick-' + it.id + '-price');
+    var changeEl = $('tick-' + it.id + '-change');
+    if (d) {
+      var lbl = d.label || '';
+      priceEl.textContent = priceLabel(d.price, lbl);
+      priceEl.className = 'tick-price';
+      var cls = pctClass(d.change);
+      changeEl.innerHTML = '<span class="' + cls + '">' + signStr(d.change) + fmt(d.change) + ' (' + signStr(d.change_pct) + fmt(d.change_pct) + '%)</span>';
+    } else {
+      priceEl.textContent = '--';
+      changeEl.innerHTML = '<span class="tick-closed">CLOSED</span>';
+    }
+  }
+}
+
+/* ========== COUNTDOWN ========== */
+function startCountdown() {
+  clearInterval(cdInterval);
+  countdown = 30;
+  updateCD();
+  cdInterval = setInterval(function() {
+    countdown--;
+    if (countdown <= 0) {
+      $('cdText').textContent = 'Refreshing...';
+      $('cdText').className = 'cd-text refreshing';
+      $('cdFill').style.width = '0%';
+      clearInterval(cdInterval);
+      fetchData().then(function() { startCountdown(); });
+      return;
+    }
+    updateCD();
+  }, 1000);
+}
+
+function updateCD() {
+  $('cdText').textContent = countdown + 's';
+  $('cdText').className = 'cd-text';
+  $('cdFill').style.width = ((countdown / 30) * 100) + '%';
+}
+
+function manualRefresh() {
+  clearInterval(cdInterval);
+  $('cdText').textContent = 'Refreshing...';
+  $('cdText').className = 'cd-text refreshing';
+  $('cdFill').style.width = '0%';
+  $('btnRefresh').style.opacity = '0.5';
+  fetchData().then(function() {
+    $('btnRefresh').style.opacity = '1';
+    startCountdown();
+  });
+}
+
+/* ========== TABS ========== */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === tab); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.toggle('active', p.id === 'panel-' + tab); });
+}
+
+/* ========== RENDER: TRADES ========== */
+function renderTrades(active, closed) {
+  var at = $('activeTradesSection');
+  var ct = $('closedTradesSection');
+  var empty = $('tradesEmpty');
+  var hasData = (active && active.length) || (closed && closed.length);
+  empty.style.display = hasData ? 'none' : 'block';
+
+  // Badge
+  var badge = $('tradesBadge');
+  if (active && active.length) {
+    badge.style.display = 'inline';
+    badge.textContent = active.length;
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Active trades
+  if (active && active.length) {
+    var h = '<div class="section-title">ACTIVE TRADES</div>';
+    for (var i = 0; i < active.length; i++) {
+      var t = active[i];
+      var isUp = t.pnl >= 0;
+      var glowCls = isUp ? 'card-glow-green' : 'card-glow-red';
+      var actionCls = t.action === 'BUY' ? 'badge-buy' : 'badge-sell';
+      var typeCls = t.type === 'SCALP' ? 'badge-scalp' : 'badge-swing';
+      var tgtPrice = t.targets && t.targets.length ? priceLabel(t.targets[0].price, t.label) : '--';
+      h += '<div class="card ' + glowCls + '">' +
+        '<div class="sig-header">' +
+          '<span class="badge ' + actionCls + '">' + esc(t.action) + '</span>' +
+          '<span class="badge ' + typeCls + '">' + esc(t.type) + '</span>' +
+          '<span class="badge badge-active">ACTIVE</span>' +
+          '<span class="sig-name">' + esc(t.name) + '</span>' +
+        '</div>' +
+        '<div class="price-grid cols-4">' +
+          '<div class="price-box entry-box"><div class="pb-label">ENTRY</div><div class="pb-price">' + priceLabel(t.entry_price, t.label) + '</div></div>' +
+          '<div class="price-box current-box"><div class="pb-label">CURRENT</div><div class="pb-price">' + priceLabel(t.current_price, t.label) + '</div></div>' +
+          '<div class="price-box sl-box"><div class="pb-label">STOP LOSS</div><div class="pb-price">' + priceLabel(t.stop_loss, t.label) + '</div></div>' +
+          '<div class="price-box target-box"><div class="pb-label">TARGET</div><div class="pb-price">' + tgtPrice + '</div></div>' +
+        '</div>' +
+        '<div class="pnl-bar ' + (isUp ? 'positive' : 'negative') + '">' +
+          '<span class="pnl-val ' + (isUp ? 'text-green' : 'text-red') + '">' + signStr(t.pnl) + priceLabel(t.pnl, t.label) + '</span>' +
+          '<span class="pnl-pct ' + (isUp ? 'text-green' : 'text-red') + '">(' + signStr(t.pnl_pct) + fmt(t.pnl_pct) + '%)</span>' +
+        '</div>' +
+        (t.entry_time ? '<div class="text-xs text-muted" style="text-align:center">Entered at ' + esc(t.entry_time) + '</div>' : '') +
+        '<div class="callout info mt8"><p>Exit at TARGET or SL &mdash; don\'t close manually</p></div>' +
+      '</div>';
+    }
+    at.innerHTML = h;
+  } else {
+    at.innerHTML = '';
+  }
+
+  // Closed trades
+  if (closed && closed.length) {
+    var h2 = '<div class="section-title">RECENTLY CLOSED</div>';
+    for (var j = 0; j < closed.length; j++) {
+      var c = closed[j];
+      var won = c.status === 'WON' || c.status === 'TARGET_HIT' || c.status === 'TARGET HIT';
+      var statusCls = won ? 'badge-won' : 'badge-lost';
+      var statusTxt = won ? 'WON' : 'LOST';
+      var glow = won ? 'card-glow-green' : 'card-glow-red';
+      var exitPrice = c.exit_price || c.current_price;
+      h2 += '<div class="card ' + glow + '">' +
+        '<div class="sig-header">' +
+          '<span class="badge ' + (c.action === 'BUY' ? 'badge-buy' : 'badge-sell') + '">' + esc(c.action) + '</span>' +
+          '<span class="badge ' + statusCls + '">' + statusTxt + '</span>' +
+          '<span class="sig-name">' + esc(c.name) + '</span>' +
+        '</div>' +
+        '<div class="price-grid cols-3">' +
+          '<div class="price-box entry-box"><div class="pb-label">ENTRY</div><div class="pb-price">' + priceLabel(c.entry_price, c.label) + '</div></div>' +
+          '<div class="price-box ' + (won ? 'target-box' : 'sl-box') + '"><div class="pb-label">EXIT</div><div class="pb-price">' + priceLabel(exitPrice, c.label) + '</div></div>' +
+          '<div class="price-box"><div class="pb-label">P&amp;L</div><div class="pb-price ' + (won ? 'text-green' : 'text-red') + '">' + (c.pnl != null ? signStr(c.pnl) + priceLabel(c.pnl, c.label) : '--') + '</div></div>' +
+        '</div>' +
+      '</div>';
+    }
+    ct.innerHTML = h2;
+  } else {
+    ct.innerHTML = '';
+  }
+}
+
+/* ========== RENDER: SCALP SIGNALS ========== */
+function renderScalpSignals(signals) {
+  var el = $('scalpSignals');
+  if (!signals || !signals.length) { el.innerHTML = ''; return; }
+
+  var h = '<div class="section-title">SCALP SIGNALS</div>';
+  for (var i = 0; i < signals.length; i++) {
+    var s = signals[i];
+    var cls = s.action === 'BUY' ? 'buy' : 'sell';
+    var target = s.targets && s.targets.length ? s.targets[0] : {};
+    var rrVal = s.sl_points && target.points ? '1:' + fmt(target.points / s.sl_points, 1) : '--';
+
+    h += '<div class="scalp-card ' + cls + '">' +
+      '<div class="scalp-title">SCALP TRADE</div>' +
+      '<div class="scalp-action-name ' + cls + '">' + esc(s.action) + ' ' + esc(s.name) + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px">Score: ' + fmt(s.score,1) + ' / ' + fmt(s.max_score,1) + '</div>' +
+      '<div class="ee-grid">' +
+        '<div class="ee-cell entry"><div class="ee-label">' + esc(s.action) + ' AT</div><div class="ee-price">' + priceLabel(s.price, s.label) + '</div><div class="ee-sub">Market Order</div></div>' +
+        '<div class="ee-cell sl"><div class="ee-label">STOP LOSS</div><div class="ee-price">' + priceLabel(s.stop_loss, s.label) + '</div><div class="ee-sub">' + (s.sl_points || '--') + ' pts risk</div></div>' +
+        '<div class="ee-cell target"><div class="ee-label">EXIT AT</div><div class="ee-price">' + (target.price ? priceLabel(target.price, s.label) : '--') + '</div><div class="ee-sub">+' + (target.points || '--') + ' pts</div></div>' +
+      '</div>' +
+      '<div class="steps" style="padding:12px 0 0">' +
+        '<div class="step"><span class="step-num">1</span><span>Enter ' + esc(s.action) + ' at <b style="color:var(--gold)">' + priceLabel(s.price, s.label) + '</b></span></div>' +
+        '<div class="step"><span class="step-num">2</span><span>Set stop loss at <b style="color:var(--red)">' + priceLabel(s.stop_loss, s.label) + '</b></span></div>' +
+        '<div class="step"><span class="step-num">3</span><span>Take profit at <b style="color:var(--green)">' + (target.price ? priceLabel(target.price, s.label) : 'target') + '</b></span></div>' +
+        '<div class="step"><span class="step-num">4</span><span style="color:var(--orange);font-weight:600">DON\'T HOLD &mdash; take profit &amp; exit</span></div>' +
+      '</div>' +
+      '<div class="rr-row">' +
+        '<div class="rr-item"><div class="rr-label">RISK</div><div class="rr-val text-red">' + (s.sl_points || '--') + ' pts</div></div>' +
+        '<div class="rr-item"><div class="rr-label">REWARD</div><div class="rr-val text-green">' + (target.points || '--') + ' pts</div></div>' +
+        '<div class="rr-item"><div class="rr-label">R:R</div><div class="rr-val text-gold">' + rrVal + '</div></div>' +
+      '</div>' +
+      '<div class="indicators">' +
+        '<span class="ind ' + (s.rsi > 70 ? 'bearish' : s.rsi < 30 ? 'bullish' : 'neutral') + '">RSI ' + fmt(s.rsi,0) + '</span>' +
+        (s.ema_stack ? '<span class="ind ' + (s.ema_stack === 'BULLISH' ? 'bullish' : s.ema_stack === 'BEARISH' ? 'bearish' : 'neutral') + '">EMA ' + esc(s.ema_stack) + '</span>' : '') +
+        (s.vwap ? '<span class="ind">VWAP ' + fmt(s.vwap) + '</span>' : '') +
+      '</div>' +
+      buildReasons(s.reasons) +
+    '</div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ========== RENDER: SCALP SUMMARIES ========== */
+function renderScalpSummaries(sums) {
+  var el = $('scalpSummaries');
+  var divider = $('scalpDivider');
+  var title = $('scalpMomTitle');
+  if (!sums || !sums.length) {
+    el.innerHTML = ''; divider.style.display = 'none'; title.style.display = 'none';
+    return;
+  }
+  divider.style.display = 'block'; title.style.display = 'flex';
+
+  var h = '';
+  for (var i = 0; i < sums.length; i++) {
+    var s = sums[i];
+    var total = (s.buy_score || 0) + (s.sell_score || 0);
+    var buyPct = total > 0 ? ((s.buy_score || 0) / total) * 100 : 50;
+    h += '<div class="summary-card">' +
+      '<div class="summary-header">' +
+        '<span class="summary-name">' + esc(s.name) + '</span>' +
+        '<span class="summary-price">' + priceLabel(s.price, s.label) + '</span>' +
+      '</div>' +
+      '<div class="score-bar-wrap">' +
+        '<div class="score-bar-label"><span class="text-green">BUY ' + fmt(s.buy_score,1) + '</span><span class="text-red">SELL ' + fmt(s.sell_score,1) + '</span></div>' +
+        '<div style="display:flex;height:6px;border-radius:3px;overflow:hidden">' +
+          '<div style="width:' + buyPct + '%;background:var(--green)"></div>' +
+          '<div style="width:' + (100 - buyPct) + '%;background:var(--red)"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ind-grid">' +
+        '<div class="ind-cell"><div class="ind-cell-label">RSI(7)</div><div class="ind-cell-val">' + fmt(s.rsi7,1) + '</div></div>' +
+        '<div class="ind-cell"><div class="ind-cell-label">STOCH K</div><div class="ind-cell-val">' + fmt(s.stoch_k,1) + '</div></div>' +
+        '<div class="ind-cell"><div class="ind-cell-label">MOM</div><div class="ind-cell-val ' + (s.momentum >= 0 ? 'text-green' : 'text-red') + '">' + fmt(s.momentum,3) + '</div></div>' +
+        '<div class="ind-cell"><div class="ind-cell-label">MACD H</div><div class="ind-cell-val ' + (s.macd_hist >= 0 ? 'text-green' : 'text-red') + '">' + fmt(s.macd_hist,2) + '</div></div>' +
+        '<div class="ind-cell"><div class="ind-cell-label">VWAP</div><div class="ind-cell-val">' + fmt(s.vwap) + '</div></div>' +
+        '<div class="ind-cell"><div class="ind-cell-label">ATR</div><div class="ind-cell-val">' + fmt(s.atr,1) + '</div></div>' +
+      '</div>' +
+      '<div class="indicators">' +
+        (s.ema_stack ? '<span class="ind ' + (s.ema_stack === 'BULLISH' ? 'bullish' : s.ema_stack === 'BEARISH' ? 'bearish' : 'neutral') + '">EMA ' + esc(s.ema_stack) + '</span>' : '') +
+        (s.volume_spike ? '<span class="ind bullish">VOL SPIKE</span>' : '') +
+        (s.green_streak ? '<span class="ind bullish">GREEN STREAK</span>' : '') +
+        (s.red_streak ? '<span class="ind bearish">RED STREAK</span>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ========== RENDER: SWING SIGNALS ========== */
+function renderSwingSignals(signals) {
+  var el = $('swingSignals');
+  if (!signals || !signals.length) { el.innerHTML = ''; return; }
+
+  var h = '<div class="section-title">SWING SIGNALS</div>';
+  for (var i = 0; i < signals.length; i++) {
+    var s = signals[i];
+    var actionCls = s.action === 'BUY' ? 'badge-buy' : 'badge-sell';
+    var glow = s.action === 'BUY' ? 'buy-glow' : 'sell-glow';
+    h += '<div class="swing-card ' + glow + '">' +
+      '<div class="sig-header">' +
+        '<span class="badge ' + actionCls + '">' + esc(s.action) + '</span>' +
+        (s.strength === 'STRONG' ? '<span class="badge badge-strong">STRONG</span>' : '') +
+        '<span class="badge badge-swing">SWING</span>' +
+        '<span class="sig-name">' + esc(s.name) + '</span>' +
+      '</div>' +
+      '<div class="sig-score">Score: ' + fmt(s.score,1) + ' / ' + fmt(s.max_score,1) + '</div>' +
+      '<div class="price-grid cols-4">' +
+        '<div class="price-box ' + (s.action === 'BUY' ? 'buy-box' : 'sell-box') + '"><div class="pb-label">ENTRY</div><div class="pb-price big">' + fmt(s.price) + '</div></div>' +
+        '<div class="price-box sl-box"><div class="pb-label">STOP LOSS</div><div class="pb-price">' + fmt(s.stop_loss) + '</div></div>' +
+        '<div class="price-box target-box"><div class="pb-label">TARGET 1</div><div class="pb-price">' + fmt(s.target_1) + '</div></div>' +
+        '<div class="price-box target-box"><div class="pb-label">TARGET 2</div><div class="pb-price">' + fmt(s.target_2) + '</div></div>' +
+      '</div>' +
+      '<div class="rr-row">' +
+        '<div class="rr-item"><div class="rr-label">RISK</div><div class="rr-val text-red">' + fmt(s.risk_per_unit,0) + '</div></div>' +
+        '<div class="rr-item"><div class="rr-label">R:R T1</div><div class="rr-val text-gold">' + esc(s.rr_t1) + '</div></div>' +
+        '<div class="rr-item"><div class="rr-label">R:R T2</div><div class="rr-val text-green">' + esc(s.rr_t2) + '</div></div>' +
+      '</div>' +
+      '<div class="indicators">' +
+        '<span class="ind ' + (s.rsi > 70 ? 'bearish' : s.rsi < 30 ? 'bullish' : 'neutral') + '">RSI ' + fmt(s.rsi,0) + '</span>' +
+        '<span class="ind ' + (s.adx >= 25 ? 'bullish' : 'neutral') + '">ADX ' + fmt(s.adx,0) + '</span>' +
+        (s.htf_trend ? '<span class="ind ' + (s.htf_trend === 'BULLISH' ? 'bullish' : s.htf_trend === 'BEARISH' ? 'bearish' : 'neutral') + '">HTF ' + esc(s.htf_trend) + '</span>' : '') +
+        (s.structure ? '<span class="ind">' + esc(s.structure) + '</span>' : '') +
+      '</div>' +
+      buildReasons(s.reasons) +
+    '</div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ========== RENDER: SWING SUMMARIES ========== */
+function renderSwingSummaries(sums) {
+  var el = $('swingSummaries');
+  var divider = $('swingDivider');
+  var title = $('swingSumTitle');
+  if (!sums || !sums.length) {
+    el.innerHTML = ''; divider.style.display = 'none'; title.style.display = 'none';
+    return;
+  }
+  divider.style.display = 'block'; title.style.display = 'flex';
+  var h = '';
+  for (var i = 0; i < sums.length; i++) {
+    h += buildSwingSummaryCard(sums[i]);
+  }
+  el.innerHTML = h;
+}
+
+function buildSwingSummaryCard(s) {
+  var total = (s.buy_score || 0) + (s.sell_score || 0);
+  var buyPct = total > 0 ? ((s.buy_score || 0) / total) * 100 : 50;
+  return '<div class="summary-card">' +
+    '<div class="summary-header">' +
+      '<span class="summary-name">' + esc(s.name) + '</span>' +
+      '<span class="summary-price">' + fmt(s.price) + '</span>' +
+    '</div>' +
+    '<div class="score-bar-wrap">' +
+      '<div class="score-bar-label"><span class="text-green">BUY ' + fmt(s.buy_score,1) + '</span><span class="text-red">SELL ' + fmt(s.sell_score,1) + '</span></div>' +
+      '<div style="display:flex;height:6px;border-radius:3px;overflow:hidden">' +
+        '<div style="width:' + buyPct + '%;background:var(--green)"></div>' +
+        '<div style="width:' + (100 - buyPct) + '%;background:var(--red)"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ind-grid">' +
+      '<div class="ind-cell"><div class="ind-cell-label">RSI</div><div class="ind-cell-val">' + fmt(s.rsi,1) + '</div></div>' +
+      '<div class="ind-cell"><div class="ind-cell-label">ADX</div><div class="ind-cell-val">' + fmt(s.adx,1) + '</div></div>' +
+      '<div class="ind-cell"><div class="ind-cell-label">MACD H</div><div class="ind-cell-val ' + (s.macd_hist >= 0 ? 'text-green' : 'text-red') + '">' + fmt(s.macd_hist,2) + '</div></div>' +
+    '</div>' +
+    '<div class="sr-levels">' +
+      '<div class="sr-box support"><div class="sr-label">SUPPORT</div><div class="sr-value text-green">' + fmt(s.support) + '</div></div>' +
+      '<div class="sr-box resistance"><div class="sr-label">RESISTANCE</div><div class="sr-value text-red">' + fmt(s.resistance) + '</div></div>' +
+    '</div>' +
+    '<div class="indicators">' +
+      (s.ema_trend ? '<span class="ind ' + (s.ema_trend === 'BULLISH' ? 'bullish' : s.ema_trend === 'BEARISH' ? 'bearish' : 'neutral') + '">EMA ' + esc(s.ema_trend) + '</span>' : '') +
+      (s.supertrend ? '<span class="ind ' + (s.supertrend === 'BULLISH' ? 'bullish' : 'bearish') + '">ST ' + esc(s.supertrend) + '</span>' : '') +
+      (s.structure ? '<span class="ind">' + esc(s.structure) + '</span>' : '') +
+      (s.htf_trend ? '<span class="ind ' + (s.htf_trend === 'BULLISH' ? 'bullish' : s.htf_trend === 'BEARISH' ? 'bearish' : 'neutral') + '">HTF ' + esc(s.htf_trend) + '</span>' : '') +
+      (s.bb_position ? '<span class="ind">BB ' + esc(s.bb_position) + '</span>' : '') +
+      (s.above_200sma ? '<span class="ind bullish">ABOVE 200 SMA</span>' : s.above_200sma === false ? '<span class="ind bearish">BELOW 200 SMA</span>' : '') +
+    '</div>' +
+    buildReasons(s.buy_reasons, 'bull') +
+    buildReasons(s.sell_reasons, 'bear') +
+  '</div>';
+}
+
+/* ========== SHARED: REASONS ========== */
+function buildReasons(arr, type) {
+  if (!arr || !arr.length) return '';
+  var h = '<div class="reasons">';
+  for (var i = 0; i < arr.length; i++) {
+    if (type === 'bear') {
+      h += '<div class="reason" style="color:var(--red)"><span style="color:var(--red)">' + esc(arr[i]) + '</span></div>';
+    } else {
+      h += '<div class="reason">' + esc(arr[i]) + '</div>';
+    }
+  }
+  return h + '</div>';
+}
+
+/* ========== RENDER: GOLD TAB ========== */
+function renderGold(summaries) {
+  var el = $('goldContent');
+  var empty = $('goldEmpty');
+  if (!summaries || !summaries.length) {
+    el.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+  var gold = null;
+  for (var i = 0; i < summaries.length; i++) {
+    if (summaries[i].name && summaries[i].name.toLowerCase().indexOf('gold') !== -1) {
+      gold = summaries[i]; break;
+    }
+  }
+  if (!gold) { el.innerHTML = ''; empty.style.display = 'block'; return; }
+  el.innerHTML = '<div class="section-title">GOLD ANALYSIS</div>' + buildSwingSummaryCard(gold);
+}
+
+/* ========== RENDER: INDIA TAB ========== */
+function renderIndia(summaries, nseOpen, nextOpen) {
+  var el = $('indiaContent');
+  if (!nseOpen) {
+    el.innerHTML = '<div class="market-closed-card">' +
+      '<span class="lock">&#128274;</span>' +
+      '<h3>INDIAN MARKET CLOSED</h3>' +
+      '<p>NSE trading hours: Mon-Fri 9:15 AM - 3:30 PM IST</p>' +
+      '<div class="next-time">Next open: ' + esc(nextOpen || '--') + '</div>' +
+      '<div class="callout warn mt8"><p>Only GOLD (COMEX) is live outside NSE hours</p></div>' +
+    '</div>';
+    return;
+  }
+  if (!summaries || !summaries.length) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">&#127470;&#127475;</span><p>No Indian market data available.</p></div>';
+    return;
+  }
+  var nifty = null, bnifty = null;
+  for (var i = 0; i < summaries.length; i++) {
+    var nm = summaries[i].name ? summaries[i].name.toLowerCase() : '';
+    if (nm.indexOf('nifty 50') !== -1) nifty = summaries[i];
+    if (nm.indexOf('bank nifty') !== -1) bnifty = summaries[i];
+  }
+  var h = '<div class="section-title">INDIAN MARKETS</div>';
+  if (nifty) h += buildSwingSummaryCard(nifty);
+  if (bnifty) h += buildSwingSummaryCard(bnifty);
+  if (!nifty && !bnifty) h += '<div class="empty-state"><p>Waiting for NIFTY/BANK NIFTY data.</p></div>';
+  el.innerHTML = h;
+}
+
+/* ========== EMPTY STATES ========== */
+function updateEmptyStates() {
+  var d = DATA;
+  var swingHas = (d.signals && d.signals.length) || (d.summaries && d.summaries.length);
+  $('swingEmpty').style.display = swingHas ? 'none' : 'block';
+  var scalpHas = (d.scalp_signals && d.scalp_signals.length) || (d.scalp_summaries && d.scalp_summaries.length);
+  $('scalpEmpty').style.display = scalpHas ? 'none' : 'block';
+}
+
+/* ========== MARKET BANNER ========== */
+function renderBanner(nseOpen, nextOpen) {
+  var el = $('marketBanner');
+  if (nseOpen) {
+    el.className = 'market-banner open';
+    el.textContent = 'NSE OPEN';
+  } else {
+    el.className = 'market-banner closed';
+    el.innerHTML = 'NSE CLOSED &mdash; Next: ' + esc(nextOpen || '--') + ' &mdash; Only GOLD live';
+  }
+}
+
+/* ========== NOTIFICATIONS ========== */
+var lastSignalKeys = {};
+function checkNotifications(d) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  var allSigs = (d.signals || []).concat(d.scalp_signals || []);
+  var newKeys = {};
+  var isFirst = Object.keys(lastSignalKeys).length === 0;
+  for (var i = 0; i < allSigs.length; i++) {
+    var s = allSigs[i];
+    var key = (s.action || '') + '_' + (s.name || '') + '_' + (s.price || '');
+    newKeys[key] = true;
+    if (!isFirst && !lastSignalKeys[key]) {
+      try {
+        new Notification('Kite: ' + (s.action || '') + ' ' + (s.name || ''), {
+          body: 'Price: ' + (s.price || '--') + ' | SL: ' + (s.stop_loss || '--'),
+          icon: '/static/icon-192.png',
+          tag: key,
+          renotify: true
+        });
+      } catch(e) { /* ignore */ }
+    }
+  }
+  lastSignalKeys = newKeys;
+}
+
+/* ========== FETCH ========== */
+function fetchData() {
+  return fetch('/api/data').then(function(resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  }).then(function(json) {
+    DATA = json;
+    render(DATA);
+    checkNotifications(DATA);
+  }).catch(function(e) {
+    console.error('Fetch error:', e);
+  });
+}
+
+/* ========== MASTER RENDER ========== */
+function render(d) {
+  // Header
+  $('lastScan').textContent = d.last_scan || 'Scanning...';
+  $('scanCount').textContent = (d.scan_count || 0) + ' scans';
+
+  // Ticker
+  renderTicker(d.live_prices);
+
+  // Banner
+  renderBanner(d.nse_open, d.nse_next_open);
+
+  // All panels
+  renderTrades(d.active_trades, d.closed_trades);
+  renderSwingSignals(d.signals);
+  renderSwingSummaries(d.summaries);
+  renderScalpSignals(d.scalp_signals);
+  renderScalpSummaries(d.scalp_summaries);
+  renderGold(d.summaries);
+  renderIndia(d.summaries, d.nse_open, d.nse_next_open);
+  updateEmptyStates();
+}
+
+/* ========== INIT ========== */
+document.addEventListener('DOMContentLoaded', function() {
+  // Request notification permission
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(function() {});
+  }
+  // Initial fetch and start countdown
+  fetchData().then(function() { startCountdown(); });
+});
+</script>
+</body>
+</html>
