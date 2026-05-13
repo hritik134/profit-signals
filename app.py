@@ -173,6 +173,7 @@ def background_scanner():
     import traceback
 
     print("[SCANNER] Background scanner started", flush=True)
+    time.sleep(2)  # let gunicorn finish worker init before first scan
 
     while True:
         try:
@@ -252,11 +253,32 @@ def background_scanner():
 
             print(f"[SCANNER] Scan #{latest_data['scan_count']} done. Prices: {list(live_prices.keys())}", flush=True)
 
-        except Exception as e:
+        except BaseException as e:
+            if isinstance(e, (SystemExit, KeyboardInterrupt)):
+                print(f"[SCANNER] Stopping: {type(e).__name__}", flush=True)
+                return
             print(f"[SCANNER] CRASH: {e}", flush=True)
             traceback.print_exc()
 
         time.sleep(30)
+
+
+scanner_thread = None
+_scanner_lock = threading.Lock()
+
+
+def _ensure_scanner_running():
+    global scanner_thread
+    with _scanner_lock:
+        if scanner_thread is None or not scanner_thread.is_alive():
+            print("[SCANNER] (Re)starting scanner thread", flush=True)
+            scanner_thread = threading.Thread(target=background_scanner, daemon=True)
+            scanner_thread.start()
+
+
+@app.before_request
+def before_request():
+    _ensure_scanner_running()
 
 
 @app.route("/")
@@ -287,10 +309,6 @@ def debug():
             "scanner_thread_alive": scanner_thread.is_alive() if scanner_thread else False,
         }
     return Response(json.dumps(info, indent=2), mimetype="application/json")
-
-
-scanner_thread = threading.Thread(target=background_scanner, daemon=True)
-scanner_thread.start()
 
 if __name__ == "__main__":
     print("\n  Trade Signal Web App running!")
